@@ -36,6 +36,12 @@ struct TestRunner {
       ("listening profiles", suite.testProfilesUseValidCustomCurvesAndListeningModes),
       ("saved curve validation", suite.testSavedCurveRejectsCorruptPreferences),
       ("offline action guards", suite.testOfflineActionsDoNotMutateHeadphoneState),
+      ("table-2 framing", suite.testTableTwoFramesRoundTripWithoutWeakeningValidation),
+      ("Safe Listening capability discovery", suite.testSoundPressureCapabilityDiscovery),
+      ("sound-pressure replies and error causes", suite.testSoundPressureReadingsAndUnavailableCauses),
+      ("poll cadence and stale readings", suite.testSoundPressurePollingAndStaleReadings),
+      ("discovery timeout and unsupported firmware", suite.testSoundPressureDiscoveryTimeoutAndUnsupportedDevice),
+      ("unsolicited telemetry rejection", suite.testUnsolicitedTelemetryDoesNotEnableMonitoring),
     ]
     for (name, test) in tests {
       let before = failures

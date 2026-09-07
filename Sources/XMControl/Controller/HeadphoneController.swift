@@ -44,6 +44,9 @@ final class HeadphoneController: ObservableObject {
   @Published private(set) var volume = 15
   @Published private(set) var model = ""
   @Published private(set) var firmware = ""
+  @Published private(set) var soundPressure: SoundPressureState = .waiting
+  private var soundPressureMonitor = SoundPressureMonitor()
+  private var soundPressureTimer: Timer?
 
   @Published private(set) var isReady = false
   @Published private(set) var savedEQBands: [Int]? = SavedEqualizer.load()
@@ -124,6 +127,10 @@ final class HeadphoneController: ObservableObject {
     firmware = ""
     notice = nil
     gotHandshakeReply = false
+    soundPressureTimer?.invalidate()
+    soundPressureTimer = nil
+    soundPressureMonitor = SoundPressureMonitor()
+    soundPressure = .waiting
   }
 
   private func refreshAll() {
@@ -155,6 +162,12 @@ final class HeadphoneController: ObservableObject {
   // MARK: Frame dispatch
 
   private func handle(_ frame: MDRFrame) {
+    if frame.type == Wire.dataMDRNo2 {
+      guard isReady else { return }
+      soundPressureMonitor.receive(frame.payload, at: ProcessInfo.processInfo.systemUptime)
+      soundPressure = soundPressureMonitor.state
+      return
+    }
     guard frame.type == Wire.dataMDR, let op = frame.opcode else { return }
 
     guard gotHandshakeReply || op == T1Command.connectRetProtocolInfo.rawValue else { return }
@@ -237,9 +250,36 @@ final class HeadphoneController: ObservableObject {
   private func received(_ setting: String) {
     initialSettings.insert(setting)
     if initialSettings.isSuperset(of: ["anc", "eq", "volume", "speech"]) {
+      let needsMonitoring = !isReady
       isReady = true
       handshakeTimer?.invalidate()
+      if needsMonitoring { startSoundPressureMonitoring() }
     }
+  }
+
+  private func startSoundPressureMonitoring() {
+    soundPressureTimer?.invalidate()
+    pollSoundPressure()
+    let timer = Timer(timeInterval: SoundPressureMonitor.pollInterval, repeats: true) { [weak self] _ in
+      Task { @MainActor in self?.pollSoundPressure() }
+    }
+    timer.tolerance = 0.2
+    soundPressureTimer = timer
+    RunLoop.main.add(timer, forMode: .common)
+  }
+
+  private func pollSoundPressure() {
+    guard isReady, conn.isUp else { return }
+    let payload = soundPressureMonitor.nextRequest(at: ProcessInfo.processInfo.systemUptime)
+    soundPressure = soundPressureMonitor.state
+    if let payload { link?.send(payload, type: Wire.dataMDRNo2) }
+  }
+
+  func retrySoundPressure() {
+    guard isReady else { return }
+    soundPressureMonitor = SoundPressureMonitor()
+    soundPressure = .waiting
+    pollSoundPressure()
   }
 
   func applyProfile(_ profile: ListeningProfile) {

@@ -10,7 +10,10 @@ dependencies. A saved EQ curve is stored locally in macOS preferences.
 - Incoming frames have a 4 KiB payload limit, exact length and checksum checks,
   strict escaping, valid sequence/type checks, and recovery after corrupt data.
 - Replies are checked for the expected subtype, band count, value ranges, and
-  printable device text before they reach UI state.
+  printable device text before they reach UI state. Sound-pressure telemetry uses
+  a separate table-2 route, with capability checks and stale-reading expiry.
+  Readings stay in memory and are never recorded or uploaded; no microphone or
+  system audio capture is used.
 - Callbacks from old RFCOMM channels are ignored. Failed writes, stalled service
   discovery, and incomplete setup cause a clean retry. Queued slider edits are
   cancelled when disconnected or superseded by a preset.

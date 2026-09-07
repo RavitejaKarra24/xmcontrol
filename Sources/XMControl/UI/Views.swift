@@ -27,6 +27,7 @@ struct PanelView: View {
             }
             StatusHeader()
             if controller.isReady {
+              SoundPressureSection()
               ProfileSection(compact: true)
               AmbientSection()
               PlaybackSection()
@@ -85,6 +86,7 @@ struct MainWindowView: View {
                 }
                 .frame(maxWidth: .infinity)
                 VStack(spacing: 20) {
+                  SoundPressureSection()
                   AudioSection()
                   ConnectionSection()
                   PowerSection()

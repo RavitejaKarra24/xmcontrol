@@ -121,10 +121,11 @@ final class SonyLink: NSObject {
 
   // MARK: Sending
 
-  func send(_ payload: [UInt8]) {
+  func send(_ payload: [UInt8], type: UInt8 = Wire.dataMDR) {
     guard case .connected = state, let channel,
+      [Wire.dataMDR, Wire.dataMDRNo2].contains(type),
       payload.count <= MDRFrameParser.maximumPayloadLength else { return }
-    let data = MDRFraming.encode(type: Wire.dataMDR, seq: seq, payload: payload)
+    let data = MDRFraming.encode(type: type, seq: seq, payload: payload)
     seq = 1 &- seq
     write(data, on: channel)
   }

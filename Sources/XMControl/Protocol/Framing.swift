@@ -15,6 +15,8 @@ enum Wire {
 
   /// DATA_MDR — command/response channel.
   static let dataMDR: UInt8 = 0x0C
+  /// MDR V2 table 2, including Safe Listening telemetry.
+  static let dataMDRNo2: UInt8 = 0x0E
   /// ACK frames.
   static let dataAck: UInt8 = 0x01
 }
@@ -120,7 +122,7 @@ final class MDRFrameParser {
     let length = declaredLength
     guard length <= Self.maximumPayloadLength, inner.count == length + 7,
       inner[1] <= 1,
-      inner[0] == Wire.dataMDR || inner[0] == Wire.dataAck,
+      [Wire.dataMDR, Wire.dataMDRNo2, Wire.dataAck].contains(inner[0]),
       inner[0] != Wire.dataAck || length == 0,
       inner.dropLast().reduce(UInt8(0), &+) == inner.last
     else { return nil }

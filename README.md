@@ -23,6 +23,11 @@ awareness of your surroundings.
 
 ## Controls
 
+- **Live sound pressure:** a headphone-reported dB estimate, refreshed about every
+  two seconds, with explicit unavailable and stale states. Available in the quick
+  panel and dashboard. Enable Safe Listening in Sony Sound Connect if needed.
+  Read [how the meter works](Docs/SoundPressure.md) for its protocol and limits.
+
 - **Quick panel:** listening profiles, ambient sound, and playback from the menu
   bar, with an **All controls** shortcut to the full dashboard.
 - **Listening mode:** noise cancelling, transparency (1–20), and off, with Focus
@@ -80,7 +85,8 @@ swift test                        # alternative: requires full Xcode / XCTest
 
 The regression suite covers every frame split, all escaped byte values, corrupt
 and oversized input, deterministic random streams, payload validation, preset
-wire layouts, saved preference validation, and disconnected action guards. CI
+wire layouts, saved preference validation, disconnected action guards, and sound-pressure
+capabilities, reply validation, polling, and stale data handling. CI
 runs the tests and packaging on macOS. Live Bluetooth behavior still requires
 headphones; software tests are not a hardware compatibility certification.
 
