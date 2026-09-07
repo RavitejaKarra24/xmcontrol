@@ -1,7 +1,7 @@
 import Foundation
 
 // MDR V2 table 2 wire layout researched in mos9527/SonyHeadphonesClient,
-// ProtocolV2.hpp and ProtocolV2T2.hpp (see Docs/SoundPressure.md).
+// ProtocolV2.hpp and ProtocolV2T2.hpp (see sound_level.md).
 // These opcodes overlap EQ in table 1: always send/parse using DATA_MDR_NO2.
 enum SoundPressureCommand {
   static let getSupport: [UInt8] = [0x06, 0x00]
@@ -36,10 +36,13 @@ enum SoundPressureCommand {
     case 0x00: return .notPlaying
     case 0x01: return .inCall
     case 0x02: return .notWorn
-    case 0xFF:
+    case 0x03:
+      // Observed on WH-1000XM5 firmware 2.5.1 during live playback.
+      // The reference enum omitted this usable status; FF is out of range.
       // 0 and 255 are not treated as usable acoustic measurements.
       guard payload[2] > 0, payload[2] < 255 else { return .unavailable }
       return .reading(Int(payload[2]))
+    case 0xFF: return .unavailable
     default: return nil
     }
   }

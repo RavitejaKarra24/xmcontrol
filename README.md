@@ -26,7 +26,8 @@ awareness of your surroundings.
 - **Live sound pressure:** a headphone-reported dB estimate, refreshed about every
   two seconds, with explicit unavailable and stale states. Available in the quick
   panel and dashboard. Enable Safe Listening in Sony Sound Connect if needed.
-  Read [how the meter works](Docs/SoundPressure.md) for its protocol and limits.
+  Verified with live XM5 firmware 2.5.1 replies. Read the
+  [sound-level investigation](sound_level.md) for protocol details and model support.
 
 - **Quick panel:** listening profiles, ambient sound, and playback from the menu
   bar, with an **All controls** shortcut to the full dashboard.
@@ -100,8 +101,8 @@ The transport feeds bounded, checked MDR frames into a main-actor controller,
 which handles setup and publishes state to SwiftUI. Outgoing commands use the
 existing XM5-specific payload layouts in this project.
 
-Only the **WH-1000XM5** is supported. XM3/XM4 and WF earbuds need different
-command layouts. Renamed headphones are not selected automatically. Multipoint
+Only the **WH-1000XM5** is supported. XM6 support has not been implemented or
+validated; XM3/XM4 and WF earbuds also need model-specific integration. Renamed headphones are not selected automatically. Multipoint
 device management is not implemented. The Mac must have an active audio link;
 a connection only to a phone is not enough. Some factory preset IDs can vary
 by firmware; the four app profiles use custom curves instead.
