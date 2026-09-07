@@ -259,13 +259,13 @@ final class HeadphoneController: ObservableObject {
 
   private func startSoundPressureMonitoring() {
     soundPressureTimer?.invalidate()
-    pollSoundPressure()
     let timer = Timer(timeInterval: SoundPressureMonitor.pollInterval, repeats: true) { [weak self] _ in
       Task { @MainActor in self?.pollSoundPressure() }
     }
     timer.tolerance = 0.2
     soundPressureTimer = timer
     RunLoop.main.add(timer, forMode: .common)
+    pollSoundPressure()
   }
 
   private func pollSoundPressure() {

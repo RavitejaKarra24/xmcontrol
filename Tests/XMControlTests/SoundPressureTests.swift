@@ -71,6 +71,13 @@ extension ProtocolTests {
     monitor.receive([0x5B, 0, 0, 0], at: 9)
     XCTAssertEqual(monitor.state, .notPlaying)
     XCTAssertNil(monitor.state.decibels)
+    // Timer coalescing must not turn an approximately 2 s cadence into 4 s.
+    var coalesced = SoundPressureMonitor()
+    _ = coalesced.nextRequest(at: 0)
+    coalesced.receive([7, 0, 1, 0x50, 0], at: 0.1)
+    XCTAssertEqual(coalesced.nextRequest(at: 2.2), [0x5A, 0])
+    XCTAssertNil(coalesced.nextRequest(at: 3.2))
+    XCTAssertEqual(coalesced.nextRequest(at: 4.0), [0x5A, 0])
     monitor = SoundPressureMonitor()
     XCTAssertEqual(monitor.state, .waiting)
     XCTAssertNil(monitor.state.decibels)

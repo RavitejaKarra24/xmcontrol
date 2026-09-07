@@ -99,7 +99,9 @@ struct SoundPressureMonitor {
               now - firstReadingRequestAt >= Self.staleInterval {
       state = .unavailable
     }
-    guard lastRequestAt.map({ now - $0 >= Self.pollInterval }) ?? true else { return nil }
+    // The Timer can coalesce a tick by 0.2 s; allow that scheduling jitter so
+    // a delayed tick followed by an on-time tick does not halve the refresh rate.
+    guard lastRequestAt.map({ now - $0 >= Self.pollInterval - 0.25 }) ?? true else { return nil }
     switch support {
     case .none:
       guard discoveryAttempts < 3 else {
