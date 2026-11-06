@@ -53,10 +53,17 @@ final class HeadphoneController: ObservableObject {
   @Published private(set) var notice: String?
   private var initialSettings: Set<String> = []
 
-  var matchingProfile: ListeningProfile? {
-    guard isReady else { return nil }
-    return ListeningProfile.allCases.first { $0.matches(anc: anc, eq: eq, speakToChat: speakToChatOn) }
+  /// The profile the user explicitly chose, while the headphones still match it.
+  /// Settings that merely coincide with a profile never count as selected.
+  var selectedProfile: ListeningProfile? {
+    guard isReady, let profile = activeProfile,
+      profile.matches(anc: anc, eq: eq, speakToChat: speakToChatOn) else { return nil }
+    return profile
   }
+
+  @Published private(set) var activeProfile: ListeningProfile?
+  /// The user's own settings from before the first profile was applied.
+  private var profileRestorePoint: (anc: ANCState, eq: EQState, speakToChat: Bool)?
 
   // MARK: Session
 
@@ -126,6 +133,8 @@ final class HeadphoneController: ObservableObject {
     model = ""
     firmware = ""
     notice = nil
+    activeProfile = nil
+    profileRestorePoint = nil
     gotHandshakeReply = false
     soundPressureTimer?.invalidate()
     soundPressureTimer = nil
@@ -282,8 +291,21 @@ final class HeadphoneController: ObservableObject {
     pollSoundPressure()
   }
 
+  /// Clicking the selected profile again turns it off and restores prior settings.
+  func toggleProfile(_ profile: ListeningProfile) {
+    if selectedProfile == profile {
+      clearProfile()
+    } else {
+      applyProfile(profile)
+    }
+  }
+
   func applyProfile(_ profile: ListeningProfile) {
     guard isReady else { return }
+    if activeProfile == nil {
+      profileRestorePoint = (anc, eq, speakToChatOn)
+    }
+    activeProfile = profile
     eqSendTask?.cancel()
     ambientSendTask?.cancel()
     anc = profile.anc
@@ -295,7 +317,32 @@ final class HeadphoneController: ObservableObject {
     send(Cmd.getANC)
     send(Cmd.getEQ)
     send(Cmd.getSpeakToChat)
-    notice = "\(profile.title) requested. Volume unchanged."
+    notice = "\(profile.title) on. Click it again to go back."
+  }
+
+  func clearProfile() {
+    guard isReady, activeProfile != nil else { return }
+    activeProfile = nil
+    guard let restore = profileRestorePoint else { return }
+    profileRestorePoint = nil
+    eqSendTask?.cancel()
+    ambientSendTask?.cancel()
+    anc = restore.anc
+    eq = restore.eq
+    speakToChatOn = restore.speakToChat
+    send(Cmd.setANC(anc))
+    send(Cmd.setEQ(eq))
+    send(Cmd.setSpeakToChat(restore.speakToChat))
+    send(Cmd.getANC)
+    send(Cmd.getEQ)
+    send(Cmd.getSpeakToChat)
+    notice = "Profile off. Your previous settings are back."
+  }
+
+  /// A manual change to a profile-controlled setting makes it the user's own again.
+  private func releaseProfile() {
+    activeProfile = nil
+    profileRestorePoint = nil
   }
 
   func saveEqualizer() {
@@ -307,6 +354,7 @@ final class HeadphoneController: ObservableObject {
 
   func restoreEqualizer() {
     guard isReady, let bands = savedEQBands else { return }
+    releaseProfile()
     eqSendTask?.cancel()
     eq = EQState(preset: EQPreset.custom.rawValue, bands: bands)
     send(Cmd.setEQ(eq))
@@ -316,6 +364,7 @@ final class HeadphoneController: ObservableObject {
 
   func resetEqualizer() {
     guard isReady else { return }
+    releaseProfile()
     eqSendTask?.cancel()
     eq = .flat
     send(Cmd.setEQ(eq))
@@ -326,6 +375,7 @@ final class HeadphoneController: ObservableObject {
 
   func setMode(_ mode: ANCMode) {
     guard isReady else { return }
+    if mode != anc.mode { releaseProfile() }
     ambientSendTask?.cancel()
     anc.mode = mode
     send(Cmd.setANC(anc))
@@ -334,7 +384,9 @@ final class HeadphoneController: ObservableObject {
   func setAmbientLevel(_ level: Int) {
     guard isReady else { return }
     guard anc.mode == .ambient else { return }
-    anc.ambientLevel = max(1, min(20, level))
+    let level = max(1, min(20, level))
+    if level != anc.ambientLevel { releaseProfile() }
+    anc.ambientLevel = level
     let snapshot = anc
     ambientSendTask?.cancel()
     ambientSendTask = Task { [weak self] in
@@ -346,6 +398,7 @@ final class HeadphoneController: ObservableObject {
 
   func setVoiceFocus(_ on: Bool) {
     guard isReady else { return }
+    releaseProfile()
     ambientSendTask?.cancel()
     anc.voiceFocus = on
     send(Cmd.setANC(anc))
@@ -355,6 +408,7 @@ final class HeadphoneController: ObservableObject {
 
   func selectPreset(_ preset: EQPreset) {
     guard isReady else { return }
+    if preset.rawValue != eq.preset { releaseProfile() }
     eqSendTask?.cancel()
     eq.preset = preset.rawValue
     send(Cmd.setEQ(eq))
@@ -365,8 +419,10 @@ final class HeadphoneController: ObservableObject {
   func setBand(index: Int, wireValue: Int) {
     guard isReady else { return }
     guard eq.bands.indices.contains(index) else { return }
+    let wireValue = max(0, min(20, wireValue))
+    if eq.preset != EQPreset.custom.rawValue || eq.bands[index] != wireValue { releaseProfile() }
     eq.preset = EQPreset.custom.rawValue
-    eq.bands[index] = max(0, min(20, wireValue))
+    eq.bands[index] = wireValue
 
     let snapshot = eq
     eqSendTask?.cancel()
@@ -399,6 +455,7 @@ final class HeadphoneController: ObservableObject {
 
   func setSpeakToChat(_ on: Bool) {
     guard isReady else { return }
+    releaseProfile()
     speakToChatOn = on
     send(Cmd.setSpeakToChat(on))
   }

@@ -4,6 +4,7 @@ import SwiftUI
 
 struct StatusHeader: View {
   @EnvironmentObject private var controller: HeadphoneController
+  var compact = false
 
   var body: some View {
     switch controller.conn {
@@ -44,19 +45,19 @@ struct StatusHeader: View {
   private func connectedHeader(name: String) -> some View {
     HStack(spacing: 13) {
       Image(systemName: "headphones")
-        .font(.system(size: 24, weight: .medium))
+        .font(.system(size: compact ? 18 : 24, weight: .medium))
         .foregroundStyle(.white)
-        .frame(width: 52, height: 52)
+        .frame(width: compact ? 38 : 52, height: compact ? 38 : 52)
         .background(
           LinearGradient(
             colors: [XMTheme.accent.opacity(0.92), XMTheme.accentBright.opacity(0.62)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
           ),
-          in: .rect(cornerRadius: 15)
+          in: .rect(cornerRadius: compact ? 11 : 15)
         )
         .overlay {
-          RoundedRectangle(cornerRadius: 15)
+          RoundedRectangle(cornerRadius: compact ? 11 : 15)
             .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.75)
         }
         .shadow(color: XMTheme.accent.opacity(0.28), radius: 14, y: 6)
@@ -64,7 +65,7 @@ struct StatusHeader: View {
 
       VStack(alignment: .leading, spacing: 5) {
         Text(controller.model.isEmpty ? name : controller.model)
-          .font(.title3.weight(.semibold))
+          .font(compact ? .headline : .title3.weight(.semibold))
           .lineLimit(1)
         HStack(spacing: 7) {
           StatusPill(color: controller.isReady ? XMTheme.success : XMTheme.warning, text: controller.isReady ? "Connected" : "Syncing")
@@ -80,7 +81,7 @@ struct StatusHeader: View {
         VStack(alignment: .trailing, spacing: 4) {
           HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text("\(battery.percent)")
-              .font(.title2.weight(.semibold).monospacedDigit())
+              .font((compact ? Font.title3 : Font.title2).weight(.semibold).monospacedDigit())
             Text("%")
               .font(.caption.weight(.semibold))
               .foregroundStyle(XMTheme.secondaryText)
@@ -98,7 +99,7 @@ struct StatusHeader: View {
         .accessibilityLabel("Battery \(battery.percent) percent")
       }
     }
-    .padding(14)
+    .padding(compact ? 10 : 14)
     .xmCardSurface()
   }
 
@@ -142,90 +143,125 @@ struct StatusHeader: View {
 struct AmbientSection: View {
   @EnvironmentObject private var controller: HeadphoneController
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  var compact = false
 
   var body: some View {
-    ControlCard("Listening mode", symbol: "waveform") {
+    ControlCard("Listening mode", symbol: "waveform", compact: compact) {
       HStack(spacing: 7) {
         ForEach(ANCMode.allCases) { mode in
           ListeningModeButton(
             mode: mode,
             selected: controller.anc.mode == mode,
+            compact: compact,
             action: { controller.setMode(mode) }
           )
         }
       }
 
       if controller.anc.mode == .ambient {
-        InsetDivider()
-          .transition(.opacity)
-
-        VStack(spacing: 12) {
-          HStack {
-            Label("Transparency", systemImage: "ear.badge.waveform")
-              .font(.callout.weight(.medium))
-            Spacer()
+        if compact {
+          HStack(spacing: 8) {
+            Image(systemName: "ear.badge.waveform")
+              .font(.caption)
+              .foregroundStyle(XMTheme.secondaryText)
+              .accessibilityHidden(true)
+            transparencySlider.controlSize(.small)
             Text("\(controller.anc.ambientLevel)")
               .font(.caption.weight(.semibold).monospacedDigit())
               .foregroundStyle(XMTheme.accentBright)
-              .padding(.horizontal, 7)
-              .padding(.vertical, 3)
-              .background(XMTheme.accent.opacity(0.12), in: Capsule())
+              .frame(width: 18, alignment: .trailing)
+            Toggle(isOn: voiceFocus) {
+              Label("Voice", systemImage: "person.wave.2.fill")
+                .font(.caption2.weight(.semibold))
+            }
+            .toggleStyle(.button)
+            .controlSize(.small)
+            .help("Focus on Voice: prioritize nearby speech")
           }
+          .transition(.opacity)
+        } else {
+          InsetDivider()
+            .transition(.opacity)
 
-          Slider(
-            value: Binding(
-              get: { Double(max(1, min(20, controller.anc.ambientLevel))) },
-              set: { controller.setAmbientLevel(Int($0.rounded())) }
-            ),
-            in: 1...20,
-            step: 1
-          )
-          .tint(XMTheme.accent)
-          .accessibilityLabel("Transparency level")
-          .accessibilityValue("\(controller.anc.ambientLevel) of 20")
+          VStack(spacing: 12) {
+            HStack {
+              Label("Transparency", systemImage: "ear.badge.waveform")
+                .font(.callout.weight(.medium))
+              Spacer()
+              Text("\(controller.anc.ambientLevel)")
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(XMTheme.accentBright)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(XMTheme.accent.opacity(0.12), in: Capsule())
+            }
 
-          FeatureToggleRow(
-            symbol: "person.wave.2.fill",
-            title: "Focus on Voice",
-            subtitle: "Prioritize nearby speech",
-            isOn: Binding(
-              get: { controller.anc.voiceFocus },
-              set: { controller.setVoiceFocus($0) }
+            transparencySlider
+
+            FeatureToggleRow(
+              symbol: "person.wave.2.fill",
+              title: "Focus on Voice",
+              subtitle: "Prioritize nearby speech",
+              isOn: voiceFocus
             )
-          )
+          }
+          .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
         }
-        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
       }
     }
     .animation(reduceMotion ? nil : .smooth(duration: 0.22), value: controller.anc.mode)
+  }
+
+  private var transparencySlider: some View {
+    Slider(
+      value: Binding(
+        get: { Double(max(1, min(20, controller.anc.ambientLevel))) },
+        set: { controller.setAmbientLevel(Int($0.rounded())) }
+      ),
+      in: 1...20,
+      step: 1
+    )
+    .tint(XMTheme.accent)
+    .accessibilityLabel("Transparency level")
+    .accessibilityValue("\(controller.anc.ambientLevel) of 20")
+  }
+
+  private var voiceFocus: Binding<Bool> {
+    Binding(
+      get: { controller.anc.voiceFocus },
+      set: { controller.setVoiceFocus($0) }
+    )
   }
 }
 
 private struct ListeningModeButton: View {
   let mode: ANCMode
   let selected: Bool
+  var compact = false
   let action: () -> Void
 
   @State private var hovered = false
 
   var body: some View {
     Button(action: action) {
-      VStack(spacing: 6) {
+      let layout = compact ? AnyLayout(HStackLayout(spacing: 6)) : AnyLayout(VStackLayout(spacing: 6))
+      layout {
         Image(systemName: mode.symbol)
-          .font(.system(.body, weight: .semibold))
+          .font(.system(compact ? .callout : .body, weight: .semibold))
         Text(mode.shortTitle)
           .font(.caption2.weight(.semibold))
           .lineLimit(1)
           .minimumScaleFactor(0.8)
       }
       .foregroundStyle(selected ? Color.white : XMTheme.secondaryText)
-      .frame(maxWidth: .infinity, minHeight: 52)
+      .frame(maxWidth: .infinity, minHeight: compact ? 34 : 52)
       .background(background, in: .rect(cornerRadius: 11))
       .overlay {
         RoundedRectangle(cornerRadius: 11)
           .strokeBorder(
             selected ? XMTheme.accentBright.opacity(0.5) : XMTheme.hairline, lineWidth: 0.75)
       }
+      .shadow(color: selected ? XMTheme.selectedGlow : .clear, radius: 8)
       .scaleEffect(selected ? 1 : (hovered ? 0.985 : 0.97))
     }
     .buttonStyle(.plain)
@@ -238,13 +274,7 @@ private struct ListeningModeButton: View {
 
   private var background: some ShapeStyle {
     if selected {
-      return AnyShapeStyle(
-        LinearGradient(
-          colors: [XMTheme.accent.opacity(0.92), XMTheme.accent.opacity(0.68)],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        )
-      )
+      return AnyShapeStyle(XMTheme.selectedFill)
     }
     return AnyShapeStyle(hovered ? XMTheme.surfaceHover : Color.white.opacity(0.035))
   }

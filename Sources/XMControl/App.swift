@@ -65,9 +65,10 @@ final class StatusItemController: NSObject {
 
     popover.behavior = .transient
     popover.animates = true
-    popover.contentViewController = NSHostingController(
-      rootView: PanelView().environmentObject(controller)
-    )
+    let hosting = NSHostingController(rootView: PanelView().environmentObject(controller))
+    // Size the popover to the panel's content so it never needs to scroll.
+    hosting.sizingOptions = [.preferredContentSize]
+    popover.contentViewController = hosting
 
     // Keep the icon and battery text in sync with live state.
     controller.$battery

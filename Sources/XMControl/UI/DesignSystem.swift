@@ -3,17 +3,26 @@ import SwiftUI
 // MARK: - Visual language
 
 enum XMTheme {
-  static let canvas = Color(red: 0.035, green: 0.055, blue: 0.063)
-  static let canvasRaised = Color(red: 0.065, green: 0.085, blue: 0.094)
+  static let canvas = Color(red: 0.031, green: 0.035, blue: 0.047)
+  static let canvasRaised = Color(red: 0.060, green: 0.066, blue: 0.086)
   static let surface = Color.white.opacity(0.055)
   static let surfaceHover = Color.white.opacity(0.085)
   static let hairline = Color.white.opacity(0.09)
   static let hairlineStrong = Color.white.opacity(0.16)
   static let secondaryText = Color.white.opacity(0.72)
   static let tertiaryText = Color.white.opacity(0.58)
-  static let accent = Color(red: 0.32, green: 0.76, blue: 0.69)
-  static let accentBright = Color(red: 0.60, green: 0.91, blue: 0.80)
-  static let success = Color(red: 0.35, green: 0.84, blue: 0.59)
+  // Vivid electric blue tuned to stand out on the near-black canvas.
+  static let accent = Color(red: 0.04, green: 0.52, blue: 1.0)
+  static let accentBright = Color(red: 0.40, green: 0.80, blue: 1.0)
+  static let accentDeep = Color(red: 0.0, green: 0.36, blue: 0.86)
+  /// Fill for selected controls, with a soft glow to match.
+  static let selectedFill = LinearGradient(
+    colors: [accent, accentDeep],
+    startPoint: .topLeading,
+    endPoint: .bottomTrailing
+  )
+  static let selectedGlow = accent.opacity(0.45)
+  static let success = Color(red: 0.42, green: 0.80, blue: 0.62)
   static let warning = Color(red: 1.0, green: 0.66, blue: 0.28)
 }
 
@@ -76,33 +85,36 @@ extension View {
 struct ControlCard<Content: View, Trailing: View>: View {
   let title: String
   let symbol: String
+  var compact = false
   @ViewBuilder let trailing: Trailing
   @ViewBuilder let content: Content
 
   init(
     _ title: String,
     symbol: String,
+    compact: Bool = false,
     @ViewBuilder trailing: () -> Trailing,
     @ViewBuilder content: () -> Content
   ) {
     self.title = title
     self.symbol = symbol
+    self.compact = compact
     self.trailing = trailing()
     self.content = content()
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      HStack(spacing: 9) {
+    VStack(alignment: .leading, spacing: compact ? 9 : 14) {
+      HStack(spacing: compact ? 7 : 9) {
         Image(systemName: symbol)
           .font(.system(.caption, weight: .semibold))
           .foregroundStyle(XMTheme.accentBright)
-          .frame(width: 24, height: 24)
+          .frame(width: compact ? 20 : 24, height: compact ? 20 : 24)
           .background(XMTheme.accent.opacity(0.12), in: .rect(cornerRadius: 7))
           .accessibilityHidden(true)
 
         Text(title)
-          .font(.headline)
+          .font(compact ? .subheadline.weight(.semibold) : .headline)
           .foregroundStyle(.primary)
 
         Spacer(minLength: 8)
@@ -111,7 +123,7 @@ struct ControlCard<Content: View, Trailing: View>: View {
 
       content
     }
-    .padding(18)
+    .padding(compact ? 12 : 18)
     .xmCardSurface()
   }
 }
@@ -120,9 +132,10 @@ extension ControlCard where Trailing == EmptyView {
   init(
     _ title: String,
     symbol: String,
+    compact: Bool = false,
     @ViewBuilder content: () -> Content
   ) {
-    self.init(title, symbol: symbol, trailing: { EmptyView() }, content: content)
+    self.init(title, symbol: symbol, compact: compact, trailing: { EmptyView() }, content: content)
   }
 }
 
@@ -259,6 +272,7 @@ struct IconActionButton: View {
   let symbol: String
   let label: String
   var role: ButtonRole?
+  var size: CGFloat = 36
   let action: () -> Void
 
   @State private var hovered = false
@@ -267,7 +281,7 @@ struct IconActionButton: View {
     Button(role: role, action: action) {
       Image(systemName: symbol)
         .font(.system(.callout, weight: .semibold))
-        .frame(width: 36, height: 36)
+        .frame(width: size, height: size)
         .foregroundStyle(role == .destructive ? Color.red : Color.primary)
         .background(
           hovered ? XMTheme.surfaceHover : Color.white.opacity(0.045),
