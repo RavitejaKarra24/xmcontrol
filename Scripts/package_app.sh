@@ -15,6 +15,27 @@ source "$ROOT/version.env"
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || exit 1
 [[ "$MACOS_MIN_VERSION" =~ ^[0-9]+\.[0-9]+$ ]] || exit 1
 
+has_swiftui_macros() {
+  [[ -e "$1/Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib" \
+    || -e "$1/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib" ]]
+}
+
+# Newer macOS SDKs implement SwiftUI's @State as a macro whose plugin ships only with
+# Xcode, not the Command Line Tools. Prefer an installed Xcode when the active
+# developer directory lacks it; an explicit DEVELOPER_DIR is always respected.
+if [[ -z "${DEVELOPER_DIR:-}" ]]; then
+  ACTIVE_DEV=$(xcode-select -p 2>/dev/null || true)
+  if [[ -z "$ACTIVE_DEV" ]] || ! has_swiftui_macros "$ACTIVE_DEV"; then
+    for XCODE in /Applications/Xcode.app /Applications/Xcode*.app "$HOME"/Applications/Xcode*.app; do
+      if [[ -d "$XCODE/Contents/Developer" ]] && has_swiftui_macros "$XCODE/Contents/Developer"; then
+        export DEVELOPER_DIR="$XCODE/Contents/Developer"
+        echo "Using toolchain from $XCODE (active developer directory lacks the SwiftUI macro plugin)"
+        break
+      fi
+    done
+  fi
+fi
+
 ARCH_LIST=( ${ARCHES:-} )
 if [[ ${#ARCH_LIST[@]} -eq 0 ]]; then
   ARCH_LIST=("$(uname -m)")
@@ -55,13 +76,16 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Ask SwiftPM where it put the product: the layout differs between toolchains
+# (e.g. .build/<arch>-apple-macosx/<conf> vs .build/out/Products/<Conf>), and a
+# guessed path can silently pick up a stale binary from an older toolchain.
 build_product_path() {
   local name="$1"
   local arch="$2"
-  case "$arch" in
-    arm64|x86_64) echo ".build/${arch}-apple-macosx/$CONF/$name" ;;
-    *) echo ".build/$CONF/$name" ;;
-  esac
+  local bin_dir
+  bin_dir=$(swift build -c "$CONF" --arch "$arch" --show-bin-path)
+  [[ -x "$bin_dir/$name" ]] || { echo "Built product not found: $bin_dir/$name" >&2; exit 1; }
+  echo "$bin_dir/$name"
 }
 
 install_binary() {
