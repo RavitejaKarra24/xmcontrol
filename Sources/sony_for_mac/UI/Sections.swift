@@ -35,7 +35,7 @@ struct StatusHeader: View {
     case .idle:
       transientHeader(
         symbol: "power",
-        title: "XM Control",
+        title: "sony_for_mac",
         detail: "Ready when your headphones are.",
         color: XMTheme.secondaryText
       )

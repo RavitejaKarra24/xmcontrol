@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="XMControl"
+APP_NAME="sony_for_mac"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Applications}"
 OPEN_APP="${OPEN_APP:-1}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -15,7 +15,7 @@ fi
 
 "$ROOT/Scripts/package_app.sh" release
 mkdir -p "$INSTALL_DIR"
-STAGING=$(mktemp -d "$INSTALL_DIR/.xmcontrol-install.XXXXXX")
+STAGING=$(mktemp -d "$INSTALL_DIR/.sony-for-mac-install.XXXXXX")
 cleanup() {
   # Restore the previous app if replacing it failed.
   if [[ -d "$STAGING/previous.app" && ! -e "$APP_PATH" ]]; then
@@ -28,6 +28,14 @@ trap cleanup EXIT
 ditto "$ROOT/$APP_NAME.app" "$STAGING/$APP_NAME.app"
 codesign --verify --deep --strict "$STAGING/$APP_NAME.app"
 pkill -x "$APP_NAME" 2>/dev/null || true
+# This app was previously named XMControl; quit and retire that build so two
+# copies never fight over the headphone connection.
+LEGACY_APP="$INSTALL_DIR/XMControl.app"
+pkill -x XMControl 2>/dev/null || true
+if [[ -d "$LEGACY_APP" ]]; then
+  mv "$LEGACY_APP" "$STAGING/legacy.app"
+  echo "Removed previous XMControl build: $LEGACY_APP"
+fi
 if [[ -e "$APP_PATH" || -L "$APP_PATH" ]]; then
   mv "$APP_PATH" "$STAGING/previous.app"
 fi

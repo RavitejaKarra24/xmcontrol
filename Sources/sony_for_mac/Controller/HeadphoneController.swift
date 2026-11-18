@@ -49,7 +49,10 @@ final class HeadphoneController: ObservableObject {
   private var soundPressureTimer: Timer?
 
   @Published private(set) var isReady = false
-  @Published private(set) var savedEQBands: [Int]? = SavedEqualizer.load()
+  @Published private(set) var savedEQBands: [Int]? = {
+    SavedEqualizer.migrateLegacyCurve()
+    return SavedEqualizer.load()
+  }()
   @Published private(set) var notice: String?
   private var initialSettings: Set<String> = []
 

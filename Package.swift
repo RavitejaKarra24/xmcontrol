@@ -2,16 +2,16 @@
 import PackageDescription
 
 let package = Package(
-    name: "XMControl",
+    name: "sony_for_mac",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "XMControl",
-            path: "Sources/XMControl",
+            name: "sony_for_mac",
+            path: "Sources/sony_for_mac",
             linkerSettings: [
                 .linkedFramework("IOBluetooth")
             ]
         ),
-        .testTarget(name: "XMControlTests", dependencies: ["XMControl"])
+        .testTarget(name: "sony_for_macTests", dependencies: ["sony_for_mac"])
     ]
 )

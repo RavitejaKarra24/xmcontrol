@@ -1,11 +1,11 @@
 # Sound level: investigation, fix, and compatibility
 
-Last investigated: 7 September 2026. Fix: XMControl 0.3.1.
+Last investigated: 7 September 2026. Fix: sony_for_mac 0.3.1.
 
 ## Result and root cause
 
 The WH-1000XM5 can supply a changing sound-pressure estimate over its Bluetooth
-control channel. The unavailable card in XMControl 0.3.0 was caused by our
+control channel. The unavailable card in sony_for_mac 0.3.0 was caused by our
 parser rejecting real replies, not evidence that the headphone lacked this
 feature. The connected WH-1000XM5, firmware 2.5.1, advertised support and
 returned levels between **62 and 73 dB** during a read-only probe.
@@ -15,7 +15,7 @@ a number. That assumption was wrong. The reference project's error enum names
 `00` (not playing), `01` (in call), `02` (detached), and `FF` (out of range), but
 omits `03`. Its receive handler consumes the level without interpreting that
 error enum. Our hardware returned `03` consistently alongside changing levels.
-XMControl now accepts `03` as the observed usable-reading status and treats `FF`
+sony_for_mac now accepts `03` as the observed usable-reading status and treats `FF`
 as unavailable. This interpretation is hardware evidence for the tested firmware,
 not a complete Sony specification for every device or firmware.
 
@@ -28,18 +28,18 @@ Listening was a general prerequisite, but did not diagnose this parser defect.
 
 These model names refer to **WH over-ear headphones**, not WF earbuds.
 
-| Model | Evidence for headphone sound pressure | XMControl support |
+| Model | Evidence for headphone sound pressure | sony_for_mac support |
 | --- | --- | --- |
 | WH-1000XM4 | Sony's September 2024 compatibility matrix marks “Checking the current sound pressure” unavailable. | Not supported. We have no evidence of equivalent usable telemetry on this model. |
 | WH-1000XM5 | Sony lists it as available; live replies verified here on firmware 2.5.1. | Supported and corrected in 0.3.1. |
-| WH-1000XM6 | Sony documents Safe Listening; the protocol reference project separately reports Sound Pressure support. | Plausible to implement, but not implemented or tested in XMControl. |
+| WH-1000XM6 | Sony documents Safe Listening; the protocol reference project separately reports Sound Pressure support. | Plausible to implement, but not implemented or tested in sony_for_mac. |
 
 The XM6 conclusion combines official Safe Listening documentation with a
 community protocol support report; Safe Listening alone would not prove this
 particular command works. The XM6 was not covered by Sony's September 2024
 matrix. No XM4 or XM6 hardware was tested during this investigation.
 
-XMControl currently selects only the WH-1000XM5 and uses XM5-specific settings
+sony_for_mac currently selects only the WH-1000XM5 and uses XM5-specific settings
 payloads. Broadening that name filter is insufficient for XM6 support: model
 capabilities, command layouts, EQ, and the complete session need validation.
 The decoder understands both advertised headband telemetry subtypes, but this
@@ -174,5 +174,5 @@ and narrowly scoped. Verify model-specific settings before enabling another mode
 - [HeadphonesV2T2.cpp: extended-param receive handler](https://github.com/mos9527/SonyHeadphonesClient/blob/965c458116d40827494726447de5f07eb50efcb8/libmdr/src/HeadphonesV2T2.cpp)
 - [HeadphonesV2.cpp: feature-dependent requests](https://github.com/mos9527/SonyHeadphonesClient/blob/965c458116d40827494726447de5f07eb50efcb8/libmdr/src/HeadphonesV2.cpp)
 
-Reference links are pinned to the reviewed commit. XMControl implements the wire
+Reference links are pinned to the reviewed commit. sony_for_mac implements the wire
 layout in Swift and does not add a libmdr dependency.

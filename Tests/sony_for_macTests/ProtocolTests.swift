@@ -1,7 +1,7 @@
 import Foundation
 #if !STANDALONE_TESTS
 import XCTest
-@testable import XMControl
+@testable import sony_for_mac
 #endif
 
 final class ProtocolTests: XCTestCase {
@@ -116,7 +116,7 @@ final class ProtocolTests: XCTestCase {
   }
 
   func testSavedCurveRejectsCorruptPreferences() {
-    let name = "XMControlTests.\(UUID().uuidString)"
+    let name = "sony_for_macTests.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: name)!
     defer { defaults.removePersistentDomain(forName: name) }
     for invalid in [[1], [0, 1, 2, 3, 4, 21], [-1, 1, 2, 3, 4, 5]] {
@@ -125,6 +125,24 @@ final class ProtocolTests: XCTestCase {
     }
     defaults.set(ListeningProfile.commute.eq.bands, forKey: SavedEqualizer.key)
     XCTAssertEqual(SavedEqualizer.load(from: defaults), ListeningProfile.commute.eq.bands)
+  }
+
+  func testLegacyCurveMigratesOnlyWhenNoCurrentCurve() {
+    let current = "sony_for_macTests.\(UUID().uuidString)"
+    let legacyName = "sony_for_macTests.legacy.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: current)!
+    let legacy = UserDefaults(suiteName: legacyName)!
+    defer {
+      defaults.removePersistentDomain(forName: current)
+      legacy.removePersistentDomain(forName: legacyName)
+    }
+    legacy.set(ListeningProfile.podcast.eq.bands, forKey: SavedEqualizer.key)
+    SavedEqualizer.migrateLegacyCurve(to: defaults, from: legacy)
+    XCTAssertEqual(SavedEqualizer.load(from: defaults), ListeningProfile.podcast.eq.bands)
+
+    legacy.set(ListeningProfile.commute.eq.bands, forKey: SavedEqualizer.key)
+    SavedEqualizer.migrateLegacyCurve(to: defaults, from: legacy)
+    XCTAssertEqual(SavedEqualizer.load(from: defaults), ListeningProfile.podcast.eq.bands)
   }
 
   @MainActor

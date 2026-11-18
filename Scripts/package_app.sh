@@ -9,7 +9,7 @@ source "$ROOT/version.env"
 
 # Validate values before constructing paths or embedding metadata in XML.
 [[ "$CONF" == "debug" || "$CONF" == "release" ]] || { echo "Expected debug or release" >&2; exit 1; }
-[[ "$APP_NAME" == "XMControl" ]] || { echo "Unexpected app name" >&2; exit 1; }
+[[ "$APP_NAME" == "sony_for_mac" ]] || { echo "Unexpected app name" >&2; exit 1; }
 [[ "$BUNDLE_ID" =~ ^[A-Za-z0-9.-]+$ ]] || exit 1
 [[ "$MARKETING_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || exit 1
@@ -64,12 +64,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
     <key>CFBundleExecutable</key><string>${APP_NAME}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleShortVersionString</key><string>${MARKETING_VERSION}</string>
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key><string>${MACOS_MIN_VERSION}</string>
     <key>LSUIElement</key><true/>
     <key>NSBluetoothAlwaysUsageDescription</key>
-        <string>XMControl talks to your Sony headphones over Bluetooth to control noise cancelling, the equalizer, and other playback settings.</string>
+        <string>sony_for_mac talks to your Sony headphones over Bluetooth to control noise cancelling, the equalizer, and other playback settings.</string>
     <key>BuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>
     <key>GitCommit</key><string>${GIT_COMMIT}</string>
 </dict>
@@ -104,6 +105,7 @@ install_binary() {
 }
 
 install_binary "$APP_NAME" "$APP/Contents/MacOS/$APP_NAME"
+cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
 # Ensure contents are writable before stripping attributes and signing.
 chmod -R u+w "$APP"

@@ -1,6 +1,6 @@
 # Security and privacy
 
-XMControl communicates directly with a paired, currently connected Sony
+sony_for_mac communicates directly with a paired, currently connected Sony
 WH-1000XM5 through its advertised classic Bluetooth control service. The
 app has no internet client, server, account, telemetry, or third-party package
 dependencies. A saved EQ curve is stored locally in macOS preferences.
@@ -38,7 +38,7 @@ The app is not App Sandbox constrained. The local build is ad-hoc signed, not
 Developer ID signed or notarized. Hardened runtime does not provide notarization
 or App Store review. No installer step disables Gatekeeper or removes quarantine.
 
-Earlier versions wrote raw traffic to `~/Library/Logs/XMControl.log`. This version
+Earlier versions (then named XMControl) wrote raw traffic to `~/Library/Logs/XMControl.log`. This version
 no longer writes that file; an existing file is left untouched. You may remove
 it if you no longer need the old diagnostics.
 

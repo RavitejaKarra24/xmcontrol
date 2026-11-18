@@ -1,7 +1,7 @@
 import Foundation
 #if !STANDALONE_TESTS
 import XCTest
-@testable import XMControl
+@testable import sony_for_mac
 #endif
 
 extension ProtocolTests {

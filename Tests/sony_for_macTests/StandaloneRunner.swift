@@ -35,6 +35,7 @@ struct TestRunner {
       ("valid replies and notifications", suite.testValidRepliesAndNotifications),
       ("listening profiles", suite.testProfilesUseValidCustomCurvesAndListeningModes),
       ("saved curve validation", suite.testSavedCurveRejectsCorruptPreferences),
+      ("legacy curve migration", suite.testLegacyCurveMigratesOnlyWhenNoCurrentCurve),
       ("offline action guards", suite.testOfflineActionsDoNotMutateHeadphoneState),
       ("captured XM5 sound-pressure replies", suite.testCapturedXM5SoundPressureReplies),
       ("table-2 framing", suite.testTableTwoFramesRoundTripWithoutWeakeningValidation),

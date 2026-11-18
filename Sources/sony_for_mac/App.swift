@@ -14,7 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct XMControlApp: App {
+struct SonyForMacApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
   @StateObject private var controller: HeadphoneController
 
@@ -25,7 +25,7 @@ struct XMControlApp: App {
   }
 
   var body: some Scene {
-    Window("XM Control", id: "main") {
+    Window("sony_for_mac", id: "main") {
       MainWindowView()
         .environmentObject(controller)
     }
@@ -117,7 +117,7 @@ final class StatusItemController: NSObject {
     menu.addItem(reconnect)
     menu.addItem(.separator())
     let quit = NSMenuItem(
-      title: "Quit XMControl",
+      title: "Quit sony_for_mac",
       action: #selector(quitClicked),
       keyEquivalent: "q"
     )
@@ -163,7 +163,7 @@ final class StatusItemController: NSObject {
     default:
       name = "headphones"
     }
-    let image = NSImage(systemSymbolName: name, accessibilityDescription: "XMControl")
+    let image = NSImage(systemSymbolName: name, accessibilityDescription: "sony_for_mac")
     image?.isTemplate = true
     return image
   }

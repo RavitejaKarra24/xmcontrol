@@ -10,7 +10,7 @@ struct PanelView: View {
     VStack(spacing: 0) {
       VStack(alignment: .leading, spacing: 10) {
         HStack(spacing: 8) {
-          Label("XM CONTROL", systemImage: "headphones")
+          Label("SONY_FOR_MAC", systemImage: "headphones")
             .font(.caption.weight(.bold)).tracking(2)
             .foregroundStyle(XMTheme.secondaryText)
           Spacer()
@@ -157,7 +157,7 @@ struct MainWindowView: View {
     .frame(minWidth: 820, idealWidth: 960, minHeight: 700, idealHeight: 900)
     .preferredColorScheme(.dark)
     .tint(XMTheme.accent)
-    .navigationTitle("XM Control")
+    .navigationTitle("sony_for_mac")
     .onAppear { controller.ensureStarted() }
   }
 }
@@ -275,7 +275,7 @@ struct ConnectionGuide: View {
       } else {
         Text("A direct connection. Just you and your music.")
           .font(.title3.weight(.semibold))
-        Text("Turn on your WH-1000XM5 and connect it to this Mac as an audio device. XM Control will take it from there.")
+        Text("Turn on your WH-1000XM5 and connect it to this Mac as an audio device. sony_for_mac will take it from there.")
           .font(.callout).foregroundStyle(XMTheme.secondaryText)
           .fixedSize(horizontal: false, vertical: true)
         Button {

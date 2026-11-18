@@ -59,4 +59,16 @@ enum SavedEqualizer {
       bands.count == 6, bands.allSatisfy({ (0...20).contains($0) }) else { return nil }
     return bands
   }
+
+  /// Preferences domain used before the app was renamed from XMControl.
+  static let legacyDomain = "com.raviteja.xmcontrol"
+
+  /// Carries a curve saved under the old app name over to the current domain, once.
+  static func migrateLegacyCurve(
+    to defaults: UserDefaults = .standard,
+    from legacy: UserDefaults? = UserDefaults(suiteName: legacyDomain)
+  ) {
+    guard defaults.object(forKey: key) == nil, let legacy, let bands = load(from: legacy) else { return }
+    defaults.set(bands, forKey: key)
+  }
 }

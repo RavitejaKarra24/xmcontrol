@@ -1,4 +1,4 @@
-# XMControl
+# sony_for_mac
 
 Your listening space, right on your Mac. A native menu bar companion for the
 **Sony WH-1000XM5**, built with Swift and SwiftUI.
@@ -72,6 +72,10 @@ Use `INSTALL_DIR=/Applications ./install.sh` to choose another installation
 folder, or `OPEN_APP=0 ./install.sh` to install without launching. Add the app to
 Login Items in System Settings if you want it to start at login.
 
+This app was previously named XMControl. The installer quits and replaces an
+`XMControl.app` in the same folder, and a saved EQ curve carries over on first
+launch.
+
 Build products are ad-hoc signed with hardened runtime for local use. They are
 not Developer ID signed or notarized for general binary distribution.
 
@@ -82,7 +86,11 @@ swift build
 ./Scripts/test.sh                 # works with Command Line Tools alone
 swift test                        # alternative: requires full Xcode / XCTest
 ./Scripts/package_app.sh release  # build, package, sign, and verify
+./Scripts/make_icon.sh            # regenerate AppIcon.icns from AppIcon.svg (needs librsvg)
 ```
+
+The app icon's source is `Resources/AppIcon.svg`; the generated
+`Resources/AppIcon.icns` is committed so builds need no extra tools.
 
 The regression suite covers every frame split, all escaped byte values, corrupt
 and oversized input, deterministic random streams, payload validation, preset
@@ -113,11 +121,11 @@ Protocol research references:
 [pratikaman/sony-wh1000xm5-mac-control](https://github.com/pratikaman/sony-wh1000xm5-mac-control),
 and [Gadgetbridge](https://codeberg.org/Freeyourgadget/Gadgetbridge).
 
-XMControl is an independent project, not affiliated with or endorsed by Sony.
+sony_for_mac is an independent project, not affiliated with or endorsed by Sony.
 
 ## Privacy and diagnostics
 
 Raw Bluetooth payloads are never logged. Optional private diagnostics use
 Apple's unified logging system and are enabled only for the process launched
-with `XMCONTROL_DIAGNOSTICS=1`. Saved EQ values stay in local macOS preferences.
+with `SONY_FOR_MAC_DIAGNOSTICS=1`. Saved EQ values stay in local macOS preferences.
 Read [SECURITY.md](SECURITY.md) for protections, limits, and legacy log handling.
