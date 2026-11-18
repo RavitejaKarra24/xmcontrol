@@ -14,6 +14,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
+  /// A menu bar app keeps running after its dashboard window closes. Without
+  /// this, SwiftUI quits an app whose only scene is a `Window` when it closes.
+  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    false
+  }
+
   /// `sonyformac://` links, e.g. from Shortcuts' "Open URLs" action.
   func application(_ application: NSApplication, open urls: [URL]) {
     MainActor.assumeIsolated {
