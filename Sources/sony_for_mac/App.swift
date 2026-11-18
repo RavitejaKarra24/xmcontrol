@@ -3,12 +3,21 @@ import SwiftUI
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
   var controller: HeadphoneController?
+  var automation: Automation?
   var statusController: StatusItemController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     controller?.ensureStarted()
-    if let controller {
-      statusController = StatusItemController(controller: controller)
+    automation?.start()
+    if let controller, let automation {
+      statusController = StatusItemController(controller: controller, automation: automation)
+    }
+  }
+
+  /// `sonyformac://` links, e.g. from Shortcuts' "Open URLs" action.
+  func application(_ application: NSApplication, open urls: [URL]) {
+    MainActor.assumeIsolated {
+      urls.forEach { automation?.handle($0) }
     }
   }
 }
@@ -17,17 +26,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct SonyForMacApp: App {
   @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
   @StateObject private var controller: HeadphoneController
+  @StateObject private var automation: Automation
 
   init() {
     let c = HeadphoneController()
+    let a = Automation(controller: c)
     _controller = StateObject(wrappedValue: c)
+    _automation = StateObject(wrappedValue: a)
     appDelegate.controller = c
+    appDelegate.automation = a
   }
 
   var body: some Scene {
     Window("sony_for_mac", id: "main") {
       MainWindowView()
         .environmentObject(controller)
+        .environmentObject(automation)
     }
     .defaultSize(width: 960, height: 900)
     .defaultPosition(.center)
@@ -45,7 +59,7 @@ final class StatusItemController: NSObject {
   private var statusItem: NSStatusItem?
   private var cancellables: Set<AnyCancellable> = []
 
-  init(controller: HeadphoneController) {
+  init(controller: HeadphoneController, automation: Automation) {
     self.controller = controller
     super.init()
 
@@ -65,7 +79,8 @@ final class StatusItemController: NSObject {
 
     popover.behavior = .transient
     popover.animates = true
-    let hosting = NSHostingController(rootView: PanelView().environmentObject(controller))
+    let hosting = NSHostingController(
+      rootView: PanelView().environmentObject(controller).environmentObject(automation))
     // Size the popover to the panel's content so it never needs to scroll.
     hosting.sizingOptions = [.preferredContentSize]
     popover.contentViewController = hosting

@@ -14,6 +14,16 @@ dependencies. A saved EQ curve is stored locally in macOS preferences.
   a separate table-2 route, with capability checks and stale-reading expiry.
   Readings stay in memory and are never recorded or uploaded; no microphone or
   system audio capture is used.
+- Paired-device names and addresses are shown only in the app and kept in
+  memory; they are never logged or stored. Disconnecting or forgetting this Mac
+  is blocked, and forgetting another device asks for confirmation.
+- `sonyformac://` links can change only the listening mode and profile. Any
+  local app or web page can open such a link, so pairing, forgetting, power
+  and multipoint actions are deliberately not exposed through it.
+- Per-app profile rules store app bundle identifiers and names in local
+  preferences. Frontmost-app changes are observed through NSWorkspace; no
+  window titles, content, or keystrokes are read. Global shortcuts register
+  fixed key combinations only.
 - Callbacks from old RFCOMM channels are ignored. Failed writes, stalled service
   discovery, and incomplete setup cause a clean retry. Queued slider edits are
   cancelled when disconnected or superseded by a preset.

@@ -50,6 +50,13 @@ final class SonyLink: NSObject {
   private var retryTimer: Timer?
   /// Guards against IOBluetooth's async channel open never calling back.
   private var openTimer: Timer?
+  /// Commands wait here until the previous one is acknowledged: the headphones
+  /// drop frames that arrive while one is still unacknowledged.
+  private var outbox: [(payload: [UInt8], type: UInt8)] = []
+  private var awaitingAck = false
+  private var ackTimer: Timer?
+  static let ackTimeout: TimeInterval = 0.6
+  static let maximumQueuedCommands = 64
   private var connectNote: IOBluetoothUserNotification?
   private var disconnectNote: IOBluetoothUserNotification?
 
@@ -104,6 +111,7 @@ final class SonyLink: NSObject {
     disconnectNote = nil
     previous?.close()
     parser.reset()
+    clearOutbox()
     seq = 0
     state = .idle
   }
@@ -122,12 +130,41 @@ final class SonyLink: NSObject {
   // MARK: Sending
 
   func send(_ payload: [UInt8], type: UInt8 = Wire.dataMDR) {
-    guard case .connected = state, let channel,
+    guard case .connected = state, channel != nil,
       [Wire.dataMDR, Wire.dataMDRNo2].contains(type),
       payload.count <= MDRFrameParser.maximumPayloadLength else { return }
-    let data = MDRFraming.encode(type: type, seq: seq, payload: payload)
+    if outbox.count >= Self.maximumQueuedCommands { outbox.removeFirst() }
+    outbox.append((payload, type))
+    sendNext()
+  }
+
+  private func sendNext() {
+    guard !awaitingAck, !outbox.isEmpty, case .connected = state, let channel else { return }
+    let next = outbox.removeFirst()
+    let data = MDRFraming.encode(type: next.type, seq: seq, payload: next.payload)
     seq = 1 &- seq
+    awaitingAck = true
+    let timer = Timer(timeInterval: Self.ackTimeout, repeats: false) { [weak self] _ in
+      Task { @MainActor in self?.acknowledged() }
+    }
+    ackTimer = timer
+    RunLoop.main.add(timer, forMode: .common)
     write(data, on: channel)
+  }
+
+  /// An ACK arrived, or the wait for one timed out; move on either way.
+  private func acknowledged() {
+    ackTimer?.invalidate()
+    ackTimer = nil
+    awaitingAck = false
+    sendNext()
+  }
+
+  private func clearOutbox() {
+    outbox.removeAll()
+    ackTimer?.invalidate()
+    ackTimer = nil
+    awaitingAck = false
   }
 
   private func sendAck(for receivedSeq: UInt8) {
@@ -173,6 +210,7 @@ final class SonyLink: NSObject {
       Log.write("link", "opening RFCOMM channel \(channelID)")
 
       parser.reset()
+      clearOutbox()
       channel = opened
       seq = 0
       watchOpenCompletion()
@@ -238,6 +276,7 @@ final class SonyLink: NSObject {
     disconnectNote = nil
     previous?.close()
     parser.reset()
+    clearOutbox()
     state = .failed(reason)
     scheduleRetry()
   }
@@ -311,7 +350,10 @@ extension SonyLink: IOBluetoothRFCOMMChannelDelegate {
     Task { @MainActor in
       guard let ch, ch === self.channel, case .connected = self.state else { return }
       for frame in self.parser.feed(data) {
-        guard frame.type != Wire.dataAck else { continue }
+        guard frame.type != Wire.dataAck else {
+          self.acknowledged()
+          continue
+        }
         self.sendAck(for: frame.seq)
         guard ch === self.channel else { return }
         self.onFrame?(frame)
@@ -326,6 +368,7 @@ extension SonyLink: IOBluetoothRFCOMMChannelDelegate {
       self.channel = nil
       self.activeDevice = nil
       self.parser.reset()
+      self.clearOutbox()
       if case .idle = self.state { return }
       self.state = .waitingForHeadphones
       self.scheduleRetry()

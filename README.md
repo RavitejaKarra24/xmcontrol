@@ -30,14 +30,27 @@ awareness of your surroundings.
   [sound-level investigation](sound_level.md) for protocol details and model support.
 
 - **Quick panel:** listening profiles, ambient sound, and playback from the menu
-  bar, with an **All controls** shortcut to the full dashboard.
+  bar, with an **All controls** shortcut to the full dashboard. When another
+  device is connected too, a **Play here** switch appears.
 - **Listening mode:** noise cancelling, transparency (1–20), and off, with Focus
   on Voice in transparency mode.
 - **Equalizer:** Sony preset selection and six custom bands: Clear Bass, 400 Hz,
   1 kHz, 2.5 kHz, 6.3 kHz, and 16 kHz. Reset to flat or save/restore one personal
   curve on this Mac. Use Up/Down arrow keys on a focused band for precise edits.
 - **Smart audio:** DSEE Extreme; Speak-to-Chat, sensitivity, and resume delay.
-- **Connection:** sound quality or connection stability priority.
+- **Connection:** sound quality or connection stability priority, and the active
+  codec.
+- **Headphone controls:** touch panel on/off (Siri is restored when it comes
+  back on), the NC/AMB button's cycle, pause when taken off, and voice guidance.
+- **Devices (multipoint):** connect to two devices, switch automatically to the
+  device that starts playing, and the paired-device list. Play from, connect,
+  disconnect, or forget each device, and put the headphones in pairing mode.
+  This Mac is marked and can't be disconnected from here.
+- **Confirmations:** cautions the headphones raise (for example before
+  reconnecting) appear as a Continue/Cancel banner.
+- **Automation:** apply a profile while a chosen app is in front, global
+  shortcuts (⌃⌥⌘N next mode, ⌃⌥⌘1–4 profiles), and `sonyformac://` links for
+  Shortcuts. Shortcuts are off by default and need no extra permissions.
 - **Playback:** volume (0–30), play, pause, and track skip.
 - **Device:** battery and firmware, wear-based auto power-off, and a confirmed
   power-off action. Reconnects automatically when the headphones become available.
@@ -94,8 +107,9 @@ The app icon's source is `Resources/AppIcon.svg`; the generated
 
 The regression suite covers every frame split, all escaped byte values, corrupt
 and oversized input, deterministic random streams, payload validation, preset
-wire layouts, saved preference validation, disconnected action guards, and sound-pressure
-capabilities, reply validation, polling, and stale data handling. CI
+wire layouts, saved preference validation, disconnected action guards, sound-pressure
+capabilities, reply validation, polling, and stale data handling, captured
+device-control and multipoint replies, alert handling, and URL commands. CI
 runs the tests and packaging on macOS. Live Bluetooth behavior still requires
 headphones; software tests are not a hardware compatibility certification.
 
@@ -111,7 +125,9 @@ existing XM5-specific payload layouts in this project.
 
 Only the **WH-1000XM5** is supported. XM6 support has not been implemented or
 validated; XM3/XM4 and WF earbuds also need model-specific integration. Renamed headphones are not selected automatically. Multipoint
-device management is not implemented. The Mac must have an active audio link;
+on/off and device connect/forget actions follow the reference layouts but were
+not toggled on hardware; see [Docs/DeviceSettings.md](Docs/DeviceSettings.md).
+The Mac must have an active audio link;
 a connection only to a phone is not enough. Some factory preset IDs can vary
 by firmware; the four app profiles use custom curves instead.
 

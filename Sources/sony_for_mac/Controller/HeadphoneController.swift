@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import IOBluetooth
 
 /// Session state machine: owns the link, performs the handshake, keeps the
 /// published UI state in sync with the headphones, and exposes actions.
@@ -49,6 +50,30 @@ final class HeadphoneController: ObservableObject {
   private var soundPressureTimer: Timer?
 
   @Published private(set) var isReady = false
+
+  // MARK: Device controls (nil until the headphones report them)
+
+  @Published var pauseWhenRemoved: Bool?
+  @Published var ncButtonMode: NCButtonMode?
+  @Published var voiceGuidanceOn: Bool?
+  @Published var voiceAssistant: VoiceAssistantSetting?
+  @Published var touchPanelOn: Bool?
+  @Published var multipointOn: Bool?
+  @Published var pairedDevices: PairedDeviceList?
+  @Published var autoSwitchOn: Bool?
+  @Published var pairingModeOn: Bool?
+  /// A headphone caution waiting for the user's answer.
+  @Published var pendingAlert: HeadphoneAlert?
+  /// Short feedback for device and multipoint actions.
+  @Published var deviceNotice: String?
+  var generalSettingSlots: [GeneralSettingKind: UInt8] = [:]
+  var preconfirmedAlerts: [UInt8: TimeInterval] = [:]
+  var lastUserActionAt: TimeInterval = -.infinity
+  var assistantBeforeTouchPanelOff: VoiceAssistantSetting?
+  var restoreAssistantWhenTouchPanelOn = false
+  /// This Mac's Bluetooth address in the headphones' "AA:BB:…" form.
+  lazy var hostAddress: String? = IOBluetoothHostController.default()?
+    .addressAsString().flatMap(DeviceCmd.normalizedAddress)
   @Published private(set) var savedEQBands: [Int]? = {
     SavedEqualizer.migrateLegacyCurve()
     return SavedEqualizer.load()
@@ -143,6 +168,7 @@ final class HeadphoneController: ObservableObject {
     soundPressureTimer = nil
     soundPressureMonitor = SoundPressureMonitor()
     soundPressure = .waiting
+    resetDeviceControls()
   }
 
   private func refreshAll() {
@@ -150,6 +176,7 @@ final class HeadphoneController: ObservableObject {
     send(Cmd.getANC)
     send(Cmd.getEQ)
     send(Cmd.getVolume)
+    send(Cmd.getCodec)
     send(Cmd.getDSEE)
     send(Cmd.getConnectionMode)
     send(Cmd.getAutoPowerOff)
@@ -157,6 +184,7 @@ final class HeadphoneController: ObservableObject {
     send(Cmd.getSpeakToChatDetail)
     send(Cmd.getDeviceInfo(1))  // model name
     send(Cmd.getDeviceInfo(2))  // firmware version
+    requestDeviceControls()
 
     pollTimer?.invalidate()
     let timer = Timer(timeInterval: 300, repeats: true) { [weak self] _ in
@@ -166,16 +194,29 @@ final class HeadphoneController: ObservableObject {
     RunLoop.main.add(timer, forMode: .common)
   }
 
-  private func send(_ payload: [UInt8]) {
+  func send(_ payload: [UInt8]) {
     guard conn.isUp, gotHandshakeReply || payload == Cmd.initHandshake else { return }
     link?.send(payload)
+  }
+
+  /// MDR V2 table 2: voice guidance, multipoint devices and Safe Listening.
+  func sendT2(_ payload: [UInt8]) {
+    guard conn.isUp, gotHandshakeReply else { return }
+    link?.send(payload, type: Wire.dataMDRNo2)
+  }
+
+  func noteUserAction() {
+    lastUserActionAt = ProcessInfo.processInfo.systemUptime
   }
 
   // MARK: Frame dispatch
 
   private func handle(_ frame: MDRFrame) {
     if frame.type == Wire.dataMDRNo2 {
+      guard gotHandshakeReply else { return }
+      handleTableTwo(frame.payload)
       guard isReady else { return }
+    noteUserAction()
       soundPressureMonitor.receive(frame.payload, at: ProcessInfo.processInfo.systemUptime)
       soundPressure = soundPressureMonitor.state
       return
@@ -204,7 +245,9 @@ final class HeadphoneController: ObservableObject {
 
     case T1Command.ncAsmRetParam.rawValue,
       T1Command.ncAsmNtfyParam.rawValue:
-      if let s = Cmd.parseANC(frame.payload) { anc = s; received("anc") }
+      if frame.subType == T1Ext.ncAsmButton {
+        if let mode = DeviceCmd.parseNCButton(frame.payload) { ncButtonMode = mode }
+      } else if let s = Cmd.parseANC(frame.payload) { anc = s; received("anc") }
 
     case T1Command.eqebbRetParam.rawValue,
       T1Command.eqebbNtfyParam.rawValue:
@@ -231,6 +274,10 @@ final class HeadphoneController: ObservableObject {
       if frame.subType == 0x0C, let on = Cmd.parseSpeakToChat(frame.payload) {
         speakToChatOn = on
         received("speech")
+      } else if let on = DeviceCmd.parsePauseWhenRemoved(frame.payload) {
+        pauseWhenRemoved = on
+      } else if let assistant = DeviceCmd.parseVoiceAssistant(frame.payload) {
+        voiceAssistant = assistant
       }
 
     case T1Command.systemRetExtParam.rawValue, T1Command.systemNtfyExtParam.rawValue:
@@ -253,6 +300,9 @@ final class HeadphoneController: ObservableObject {
       {
         codec = c
       }
+
+    case T1Ext.gsRetCapability, T1Ext.gsRetParam, T1Ext.gsNtfyParam, T1Ext.alertNtfyParam:
+      handleDeviceControl(frame.payload)
 
     default:
       Log.write("rx", "unhandled opcode 0x\(String(op, radix: 16))")
@@ -289,6 +339,7 @@ final class HeadphoneController: ObservableObject {
 
   func retrySoundPressure() {
     guard isReady else { return }
+    noteUserAction()
     soundPressureMonitor = SoundPressureMonitor()
     soundPressure = .waiting
     pollSoundPressure()
@@ -303,8 +354,9 @@ final class HeadphoneController: ObservableObject {
     }
   }
 
-  func applyProfile(_ profile: ListeningProfile) {
+  func applyProfile(_ profile: ListeningProfile, reason: String? = nil) {
     guard isReady else { return }
+    noteUserAction()
     if activeProfile == nil {
       profileRestorePoint = (anc, eq, speakToChatOn)
     }
@@ -320,7 +372,7 @@ final class HeadphoneController: ObservableObject {
     send(Cmd.getANC)
     send(Cmd.getEQ)
     send(Cmd.getSpeakToChat)
-    notice = "\(profile.title) on. Click it again to go back."
+    notice = reason ?? "\(profile.title) on. Click it again to go back."
   }
 
   func clearProfile() {
@@ -367,6 +419,7 @@ final class HeadphoneController: ObservableObject {
 
   func resetEqualizer() {
     guard isReady else { return }
+    noteUserAction()
     releaseProfile()
     eqSendTask?.cancel()
     eq = .flat
@@ -378,6 +431,7 @@ final class HeadphoneController: ObservableObject {
 
   func setMode(_ mode: ANCMode) {
     guard isReady else { return }
+    noteUserAction()
     if mode != anc.mode { releaseProfile() }
     ambientSendTask?.cancel()
     anc.mode = mode
@@ -386,6 +440,7 @@ final class HeadphoneController: ObservableObject {
 
   func setAmbientLevel(_ level: Int) {
     guard isReady else { return }
+    noteUserAction()
     guard anc.mode == .ambient else { return }
     let level = max(1, min(20, level))
     if level != anc.ambientLevel { releaseProfile() }
@@ -401,6 +456,7 @@ final class HeadphoneController: ObservableObject {
 
   func setVoiceFocus(_ on: Bool) {
     guard isReady else { return }
+    noteUserAction()
     releaseProfile()
     ambientSendTask?.cancel()
     anc.voiceFocus = on
@@ -411,6 +467,7 @@ final class HeadphoneController: ObservableObject {
 
   func selectPreset(_ preset: EQPreset) {
     guard isReady else { return }
+    noteUserAction()
     if preset.rawValue != eq.preset { releaseProfile() }
     eqSendTask?.cancel()
     eq.preset = preset.rawValue
@@ -421,6 +478,7 @@ final class HeadphoneController: ObservableObject {
   /// Slider drag: switch to Custom and debounce the actual write.
   func setBand(index: Int, wireValue: Int) {
     guard isReady else { return }
+    noteUserAction()
     guard eq.bands.indices.contains(index) else { return }
     let wireValue = max(0, min(20, wireValue))
     if eq.preset != EQPreset.custom.rawValue || eq.bands[index] != wireValue { releaseProfile() }
@@ -440,24 +498,28 @@ final class HeadphoneController: ObservableObject {
 
   func setDSEE(_ on: Bool) {
     guard isReady else { return }
+    noteUserAction()
     dseeOn = on
     send(Cmd.setDSEE(on))
   }
 
   func setConnectionMode(qualityPrior: Bool) {
     guard isReady else { return }
+    noteUserAction()
     self.qualityPrior = qualityPrior
     send(Cmd.setConnectionMode(qualityPrior: qualityPrior))
   }
 
   func setAutoPowerOff(_ setting: AutoPowerOffSetting) {
     guard isReady else { return }
+    noteUserAction()
     autoPowerOff = setting
     send(Cmd.setAutoPowerOff(setting))
   }
 
   func setSpeakToChat(_ on: Bool) {
     guard isReady else { return }
+    noteUserAction()
     releaseProfile()
     speakToChatOn = on
     send(Cmd.setSpeakToChat(on))
@@ -465,6 +527,7 @@ final class HeadphoneController: ObservableObject {
 
   func setSpeakToChatDetail(sensitivity: STCSensitivity, timeout: STCTimeout) {
     guard isReady else { return }
+    noteUserAction()
     stcSensitivity = sensitivity
     stcTimeout = timeout
     send(Cmd.setSpeakToChatDetail(sensitivity: sensitivity, timeout: timeout))
@@ -473,6 +536,7 @@ final class HeadphoneController: ObservableObject {
   /// Slider drag: debounce like the EQ.
   func setVolume(_ level: Int) {
     guard isReady else { return }
+    noteUserAction()
     volume = max(0, min(30, level))
     let v = volume
     volumeSendTask?.cancel()
@@ -485,11 +549,13 @@ final class HeadphoneController: ObservableObject {
 
   func playback(_ control: PlaybackControl) {
     guard isReady else { return }
+    noteUserAction()
     send(Cmd.playbackControl(control))
   }
 
   func powerOff() {
     guard isReady else { return }
+    noteUserAction()
     send(Cmd.powerOff)
   }
 

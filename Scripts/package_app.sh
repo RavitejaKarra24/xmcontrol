@@ -69,6 +69,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
     <key>LSMinimumSystemVersion</key><string>${MACOS_MIN_VERSION}</string>
     <key>LSUIElement</key><true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>${BUNDLE_ID}</string>
+            <key>CFBundleURLSchemes</key><array><string>sonyformac</string></array>
+        </dict>
+    </array>
     <key>NSBluetoothAlwaysUsageDescription</key>
         <string>sony_for_mac talks to your Sony headphones over Bluetooth to control noise cancelling, the equalizer, and other playback settings.</string>
     <key>BuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>

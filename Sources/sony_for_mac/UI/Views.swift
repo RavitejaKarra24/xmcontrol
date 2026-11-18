@@ -29,9 +29,11 @@ struct PanelView: View {
           .help("Open the full headphone dashboard")
         }
         StatusHeader(compact: true)
+        HeadphoneAlertBanner()
         if controller.isReady {
           AmbientSection(compact: true)
           ProfileSection(compact: true)
+          CompactDevicesBar()
           CompactPlaybackBar()
         } else {
           ConnectionGuide()
@@ -123,6 +125,7 @@ struct MainWindowView: View {
                 .accessibilityHidden(true)
             }
             StatusHeader()
+            HeadphoneAlertBanner()
             if !controller.isReady { ConnectionGuide() }
             ProfileSection()
             if controller.isReady {
@@ -130,19 +133,22 @@ struct MainWindowView: View {
                 VStack(spacing: 20) {
                   AmbientSection()
                   EQSection()
+                  ControlsSection()
                   PlaybackSection()
                 }
                 .frame(maxWidth: .infinity)
                 VStack(spacing: 20) {
                   SoundPressureSection()
                   AudioSection()
+                  DevicesSection()
                   ConnectionSection()
                   PowerSection()
-                  PrivacyNote()
                 }
                 .frame(maxWidth: .infinity)
               }
             }
+            AutomationSection()
+            PrivacyNote()
           }
           .padding(28)
           .frame(maxWidth: 1120)

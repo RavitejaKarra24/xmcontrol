@@ -25,6 +25,8 @@ enum Cmd {
   static let getANC: [UInt8] = [T1Command.ncAsmGetParam.rawValue, ncAsmTypeXM5]
   static let getEQ: [UInt8] = [T1Command.eqebbGetParam.rawValue, 0x00]
   static let getVolume: [UInt8] = [T1Command.playGetParam.rawValue, 0x20]
+  /// `13 02 <codec>` — verified on the XM5 (AAC on macOS).
+  static let getCodec: [UInt8] = [T1Command.commonGetStatus.rawValue, 0x02]
 
   /// Model (type 1) / firmware version (type 2), length-prefixed ASCII.
   static func getDeviceInfo(_ type: UInt8) -> [UInt8] {

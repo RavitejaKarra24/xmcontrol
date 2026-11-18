@@ -10,6 +10,7 @@ swiftc -parse-as-library -D STANDALONE_TESTS \
   Sources/sony_for_mac/Bluetooth/*.swift \
   Sources/sony_for_mac/Support/*.swift \
   Sources/sony_for_mac/Controller/*.swift \
+  Sources/sony_for_mac/Automation/*.swift \
   Tests/sony_for_macTests/*.swift \
   -framework IOBluetooth -o "$TEST_DIR/ProtocolTests"
 "$TEST_DIR/ProtocolTests"

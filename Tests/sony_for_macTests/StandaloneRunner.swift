@@ -44,6 +44,14 @@ struct TestRunner {
       ("poll cadence and stale readings", suite.testSoundPressurePollingAndStaleReadings),
       ("discovery timeout and unsupported firmware", suite.testSoundPressureDiscoveryTimeoutAndUnsupportedDevice),
       ("unsolicited telemetry rejection", suite.testUnsolicitedTelemetryDoesNotEnableMonitoring),
+      ("captured XM5 device-control replies", suite.testCapturedXM5DeviceControlReplies),
+      ("device-control request shapes", suite.testDeviceControlRequestShapes),
+      ("paired device list", suite.testPairedDeviceListParsing),
+      ("malformed device-control replies", suite.testRejectsMalformedDeviceControlReplies),
+      ("headphone alerts", suite.testAlertsNeedAnAnswerUnlessExpected),
+      ("device state follows reports", suite.testDeviceStateFollowsHeadphoneReports),
+      ("URL commands", suite.testURLCommands),
+      ("app rule preferences", suite.testAppRulesIgnoreCorruptPreferences),
     ]
     for (name, test) in tests {
       let before = failures
